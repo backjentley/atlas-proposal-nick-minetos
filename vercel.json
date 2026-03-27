@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "name": "atlas-proposal-anthonyscott",
+  "builds": [
+    {
+      "src": "**/*",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/",
+      "dest": "/Anthony_Scott_Proposal.html"
+    }
+  ]
+}

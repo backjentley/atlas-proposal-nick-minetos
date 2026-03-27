@@ -1,0 +1,1183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Atlas Optimizations — Proposal for Nick Minetos | PEO Emperor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #050510;
+    --surface: #0d0d1f;
+    --surface2: #12122a;
+    --border: rgba(108,62,240,0.15);
+    --acc: #6c3ef0;
+    --acc2: #9b6dff;
+    --acc-light: rgba(108,62,240,0.12);
+    --green: #1fd898;
+    --green-bg: rgba(31,216,152,0.08);
+    --gold: #f59e0b;
+    --gold-bg: rgba(245,158,11,0.08);
+    --red: #f87171;
+    --red-bg: rgba(248,113,113,0.08);
+    --blue: #60a5fa;
+    --blue-bg: rgba(96,165,250,0.08);
+    --text: #e8e8f0;
+    --muted: #8888aa;
+    --dim: #555570;
+    --ease: cubic-bezier(0.4,0,0.2,1);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Poppins', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  /* ── BACKGROUND EFFECTS ── */
+  .bg-orbs {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    overflow: hidden;
+  }
+  .orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(120px);
+    opacity: 0.12;
+    animation: drift 20s ease-in-out infinite;
+  }
+  .orb-1 { width: 600px; height: 600px; background: #6c3ef0; top: -200px; left: -100px; animation-delay: 0s; }
+  .orb-2 { width: 500px; height: 500px; background: #1fd898; top: 40%; right: -150px; animation-delay: -7s; }
+  .orb-3 { width: 400px; height: 400px; background: #9b6dff; bottom: -100px; left: 30%; animation-delay: -13s; }
+  @keyframes drift {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    33% { transform: translate(30px, -40px) scale(1.05); }
+    66% { transform: translate(-20px, 30px) scale(0.95); }
+  }
+
+  /* ── LAYOUT ── */
+  .wrap { max-width: 900px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 1; }
+
+  /* ── HEADER ── */
+  .header {
+    padding: 32px 0 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+  }
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .logo-icon {
+    height: 36px;
+    width: auto;
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+  }
+  .logo-icon img {
+    height: 36px;
+    width: auto;
+    display: block;
+  }
+
+  .logo-text { font-size: 15px; font-weight: 600; color: var(--text); }
+  .logo-sub { font-size: 11px; color: var(--muted); }
+  .header-badge {
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--acc2);
+    background: var(--acc-light);
+    border: 1px solid var(--border);
+    padding: 4px 12px;
+    border-radius: 20px;
+  }
+
+  /* ── HERO ── */
+  .hero {
+    padding: 64px 0 48px;
+    text-align: center;
+  }
+  .hero-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--acc-light);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 5px 14px;
+    font-size: 11px;
+    color: var(--acc2);
+    font-family: 'JetBrains Mono', monospace;
+    margin-bottom: 24px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  .hero h1 {
+    font-size: 48px;
+    font-weight: 800;
+    line-height: 1.1;
+    margin-bottom: 8px;
+    background: linear-gradient(135deg, #ffffff 0%, #9b6dff 60%, #1fd898 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .hero-name {
+    font-size: 18px;
+    color: var(--muted);
+    margin-bottom: 32px;
+  }
+  .hero-name strong { color: var(--acc2); }
+  .hero-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    max-width: 600px;
+    margin: 0 auto;
+  }
+  .h-stat {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 16px;
+  }
+  .h-stat-n {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--acc2);
+    font-family: 'Poppins', sans-serif;
+  }
+  .h-stat-l { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  /* ── SECTIONS ── */
+  section { padding: 56px 0; border-top: 1px solid var(--border); }
+  section:first-of-type { border-top: none; }
+
+  h2 {
+    font-size: 26px;
+    font-weight: 700;
+    margin-bottom: 6px;
+    color: var(--text);
+  }
+  .section-sub {
+    color: var(--muted);
+    font-size: 14px;
+    margin-bottom: 32px;
+  }
+  .section-label {
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--acc2);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 8px;
+  }
+
+  /* ── CARDS ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+  }
+  .card-green { background: var(--green-bg); border-color: rgba(31,216,152,0.2); }
+  .card-gold { background: var(--gold-bg); border-color: rgba(245,158,11,0.2); }
+  .card-purple { background: var(--acc-light); border-color: rgba(108,62,240,0.3); }
+
+  /* ── SITUATION SECTION ── */
+  .situation-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .sit-item {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+  }
+  .sit-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+    background: var(--surface2);
+  }
+  .sit-label { font-size: 11px; color: var(--muted); }
+  .sit-val { font-size: 13px; color: var(--text); font-weight: 500; }
+
+  /* ── CAMPAIGNS ── */
+  .campaign-grid { display: grid; gap: 16px; }
+  .campaign-card {
+    border-radius: 16px;
+    padding: 24px;
+    border: 1px solid;
+    position: relative;
+    overflow: hidden;
+  }
+  .campaign-card::before {
+    content: '';
+    position: absolute;
+    top: 0; right: 0;
+    width: 200px; height: 200px;
+    border-radius: 50%;
+    opacity: 0.06;
+    filter: blur(60px);
+  }
+  .c1 { background: rgba(96,165,250,0.06); border-color: rgba(96,165,250,0.25); }
+  .c1::before { background: #60a5fa; }
+  .c2 { background: rgba(31,216,152,0.06); border-color: rgba(31,216,152,0.25); }
+  .c2::before { background: #1fd898; }
+  .c3 { background: rgba(245,158,11,0.06); border-color: rgba(245,158,11,0.25); }
+  .c3::before { background: #f59e0b; }
+  .campaign-num {
+    font-size: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 4px;
+  }
+  .c1 .campaign-num { color: var(--blue); }
+  .c2 .campaign-num { color: var(--green); }
+  .c3 .campaign-num { color: var(--gold); }
+  .campaign-title {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .campaign-desc { font-size: 13px; color: var(--muted); margin-bottom: 16px; }
+  .campaign-bool {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    color: var(--acc2);
+    margin-bottom: 12px;
+    line-height: 1.7;
+  }
+  .campaign-hook {
+    font-size: 12px;
+    border-radius: 8px;
+    padding: 10px 14px;
+    border-left: 3px solid;
+    font-style: italic;
+  }
+  .c1 .campaign-hook { background: var(--blue-bg); border-color: var(--blue); color: #a0c4ff; }
+  .c2 .campaign-hook { background: var(--green-bg); border-color: var(--green); color: #7de8c4; }
+  .c3 .campaign-hook { background: var(--gold-bg); border-color: var(--gold); color: #fcd87e; }
+  .campaign-per-day {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--muted);
+    margin-top: 12px;
+  }
+
+  /* ── PIPELINE MATH ── */
+  .pipeline-flow {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    margin-bottom: 24px;
+  }
+  .pipe-step {
+    flex: 1;
+    padding: 20px 16px;
+    text-align: center;
+    border-right: 1px solid var(--border);
+    position: relative;
+  }
+  .pipe-step:last-child { border-right: none; }
+  .pipe-step::after {
+    content: '→';
+    position: absolute;
+    right: -9px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--dim);
+    font-size: 14px;
+    z-index: 1;
+  }
+  .pipe-step:last-child::after { display: none; }
+  .pipe-n {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--acc2);
+    font-family: 'Poppins', sans-serif;
+  }
+  .pipe-l { font-size: 10px; color: var(--muted); margin-top: 2px; }
+  .pipe-rate { font-size: 10px; color: var(--dim); font-family: 'JetBrains Mono', monospace; }
+
+  .roi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .roi-card {
+    border-radius: 12px;
+    padding: 20px;
+    border: 1px solid;
+    text-align: center;
+  }
+  .roi-n { font-size: 32px; font-weight: 700; }
+  .roi-l { font-size: 12px; margin-top: 4px; }
+  .roi-green { background: var(--green-bg); border-color: rgba(31,216,152,0.25); }
+  .roi-green .roi-n { color: var(--green); }
+  .roi-green .roi-l { color: rgba(31,216,152,0.6); }
+  .roi-purple { background: var(--acc-light); border-color: rgba(108,62,240,0.3); }
+  .roi-purple .roi-n { color: var(--acc2); }
+  .roi-purple .roi-l { color: rgba(155,109,255,0.6); }
+
+  /* ── ANGLE SECTION ── */
+  .angle-list { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
+  .angle-item {
+    display: flex;
+    gap: 14px;
+    align-items: center;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 18px;
+  }
+  .angle-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--acc2);
+    flex-shrink: 0;
+  }
+  .angle-text { font-size: 13px; color: var(--text); }
+  .angle-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  /* ── WHY ATLAS ── */
+  .why-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .why-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px;
+  }
+  .why-icon { font-size: 22px; margin-bottom: 8px; }
+  .why-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+  .why-desc { font-size: 12px; color: var(--muted); line-height: 1.6; }
+
+  /* ── PRICING ── */
+  .pricing-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 24px; }
+  .price-card {
+    border-radius: 16px;
+    padding: 28px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    transition: transform 0.2s var(--ease);
+  }
+  .price-card:hover { transform: translateY(-3px); }
+  .price-card.featured {
+    border-color: rgba(108,62,240,0.5);
+    background: linear-gradient(135deg, rgba(108,62,240,0.12) 0%, rgba(155,109,255,0.06) 100%);
+    position: relative;
+  }
+  .featured-badge {
+    position: absolute;
+    top: -12px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(135deg, #6c3ef0, #9b6dff);
+    color: white;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 4px 14px;
+    border-radius: 20px;
+    white-space: nowrap;
+    letter-spacing: 0.05em;
+  }
+  .price-name { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 8px; }
+  .price-amt { font-size: 36px; font-weight: 800; color: var(--text); }
+  .price-amt span { font-size: 14px; color: var(--muted); font-weight: 400; }
+  .price-divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+  .price-feat {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 8px;
+    line-height: 1.5;
+  }
+  .price-feat::before { content: '✓'; color: var(--green); font-weight: 700; flex-shrink: 0; }
+  .price-note { font-size: 11px; color: var(--dim); margin-top: 12px; font-style: italic; }
+
+  /* Setup fee */
+  .setup-card {
+    border-radius: 16px;
+    padding: 28px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    margin-top: 16px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    align-items: center;
+  }
+  .setup-title { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+  .setup-desc { font-size: 12px; color: var(--muted); line-height: 1.7; }
+  .setup-breakdown { display: flex; flex-direction: column; gap: 8px; }
+  .setup-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    padding: 8px 12px;
+    background: var(--surface);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+  }
+  .setup-row .lbl { color: var(--muted); }
+  .setup-row .val { color: var(--acc2); font-family: 'JetBrains Mono', monospace; font-weight: 500; }
+
+  /* ── TIMELINE ── */
+  .timeline { display: flex; flex-direction: column; gap: 0; }
+  .tl-item {
+    display: flex;
+    gap: 20px;
+    padding-bottom: 28px;
+    position: relative;
+  }
+  .tl-item:last-child { padding-bottom: 0; }
+  .tl-left {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 48px;
+    flex-shrink: 0;
+  }
+  .tl-dot {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: var(--acc);
+    border: 2px solid var(--acc2);
+    flex-shrink: 0;
+    z-index: 1;
+  }
+  .tl-line {
+    width: 2px;
+    flex: 1;
+    background: var(--border);
+    margin-top: 4px;
+  }
+  .tl-item:last-child .tl-line { display: none; }
+  .tl-right { flex: 1; }
+  .tl-time { font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--acc2); margin-bottom: 2px; }
+  .tl-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+  .tl-body { font-size: 12px; color: var(--muted); line-height: 1.6; }
+
+  /* ── CTA ── */
+  .cta-section {
+    padding: 64px 0;
+    text-align: center;
+  }
+  .cta-box {
+    background: linear-gradient(135deg, rgba(108,62,240,0.15) 0%, rgba(31,216,152,0.08) 100%);
+    border: 1px solid rgba(108,62,240,0.35);
+    border-radius: 24px;
+    padding: 48px;
+  }
+  .cta-box h2 { font-size: 32px; margin-bottom: 12px; }
+  .cta-box p { color: var(--muted); font-size: 14px; margin-bottom: 28px; max-width: 480px; margin-left: auto; margin-right: auto; }
+  .cta-meeting {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: linear-gradient(135deg, #6c3ef0, #9b6dff);
+    color: white;
+    font-size: 15px;
+    font-weight: 600;
+    padding: 16px 36px;
+    border-radius: 12px;
+    text-decoration: none;
+    margin-bottom: 16px;
+    transition: transform 0.2s var(--ease), box-shadow 0.2s var(--ease);
+    box-shadow: 0 0 40px rgba(108,62,240,0.3);
+  }
+  .cta-meeting:hover { transform: translateY(-2px); box-shadow: 0 0 60px rgba(108,62,240,0.45); }
+  .cta-sub { font-size: 12px; color: var(--dim); }
+
+  /* ── FOOTER ── */
+  .footer {
+    padding: 32px 0;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    color: var(--dim);
+  }
+  .footer a { color: var(--muted); text-decoration: none; }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 768px) {
+    /* Layout */
+    .wrap { padding: 0 4px; }
+    section { padding: 24px 16px; margin-bottom: 12px; }
+
+    /* Header */
+    .header { padding: 12px 16px; }
+    .header-meta { display: none; }
+    .logo-text { font-size: 13px; }
+    .logo-sub { font-size: 10px; }
+
+    /* Hero */
+    .hero { padding: 40px 16px 32px; }
+    .hero h1 { font-size: 28px; line-height: 1.25; }
+    .hero-sub { font-size: 14px; }
+    .hero-stats { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .hero-stat-n { font-size: 22px; }
+    .hero-stat-l { font-size: 9px; }
+
+    /* Grids → single column */
+    .situation-grid { grid-template-columns: 1fr; gap: 10px; }
+    .roi-grid { grid-template-columns: 1fr; }
+    .why-grid { grid-template-columns: 1fr; gap: 10px; }
+    .pricing-grid { grid-template-columns: 1fr; gap: 12px; }
+    .setup-card { grid-template-columns: 1fr; gap: 12px; }
+
+    /* Social proof 3-col stat cards → stack */
+    div[style*="grid-template-columns:repeat(3,1fr)"],
+    div[style*="grid-template-columns: repeat(3,1fr)"],
+    div[style*="grid-template-columns:repeat(3, 1fr)"] {
+      grid-template-columns: 1fr !important;
+      gap: 10px !important;
+    }
+
+    /* Pipeline flow */
+    .pipeline-flow { flex-direction: column; align-items: stretch; gap: 6px; }
+    .pipe-step { flex-direction: row; align-items: center; justify-content: space-between; padding: 12px; }
+    .pipe-step::after { display: none; }
+    .pipe-n { font-size: 22px; }
+
+    /* Drip sequence cards */
+    .drip-day { font-size: 9px; }
+    .drip-label { font-size: 11px; }
+    .drip-msg { font-size: 12px; padding: 10px; }
+    .drip-note { font-size: 10px; }
+
+    /* Campaign bool / hook */
+    .campaign-bool { font-size: 11px; word-break: break-word; }
+    .campaign-hook { font-size: 12px; padding: 12px; }
+
+    /* LinkedIn screenshot — ensure full width, no overflow */
+    div[style*="fl_realtor_search"] { overflow: hidden; }
+    img[src="fl_realtor_search.png"] { max-width: 100%; height: auto; }
+
+    /* Before/After — force single column on mobile */
+    .before-after,
+    div[style*="grid-template-columns:1fr 1fr"],
+    div[style*="grid-template-columns: 1fr 1fr"] {
+      grid-template-columns: 1fr !important;
+      gap: 10px !important;
+    }
+
+    /* Angle items */
+    .angle-item { flex-direction: column; gap: 6px; }
+
+    /* Pricing */
+    .price-n { font-size: 36px; }
+    .pricing-features li { font-size: 12px; }
+    .pricing-card.featured { transform: none; }
+
+    /* CTA */
+    .cta-box { padding: 28px 16px; }
+    .cta-box h2 { font-size: 22px; }
+    .cta-btn { font-size: 14px; padding: 14px 24px; }
+    .cta-links { flex-direction: column; gap: 8px; font-size: 12px; }
+
+    /* Cards */
+    .card { padding: 14px; font-size: 13px; }
+    .roi-card { padding: 14px 10px; }
+    .roi-n { font-size: 30px; }
+
+    /* FAQ */
+    .faq-q { font-size: 13px; }
+    .faq-a { font-size: 12px; }
+
+    /* Timeline */
+    .tl { padding-left: 16px; }
+    .tl-item { padding-left: 16px; }
+    .tl-time { font-size: 9px; }
+
+    /* Footer */
+    .footer { flex-direction: column; gap: 6px; text-align: center; font-size: 11px; }
+  }
+
+  /* Tightest screens */
+  @media (max-width: 400px) {
+    .hero h1 { font-size: 24px; }
+    .hero-stats { grid-template-columns: 1fr; }
+    section { padding: 20px 12px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="bg-orbs">
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+</div>
+
+<div class="wrap">
+
+  <!-- HEADER -->
+  <header class="header">
+    <div class="logo">
+      <div class="logo-icon"><img src="data:image/png;base64,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" alt="Atlas Optimizations"></div>
+      <div>
+        <div class="logo-text">Atlas Optimizations</div>
+        <div class="logo-sub">LinkedIn Outbound Infrastructure</div>
+      </div>
+    </div>
+    <div class="header-badge">Prepared · March 27, 2026</div>
+  </header>
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="hero-pill">📋 Personalized Growth Proposal</div>
+    <h1>Your High-Ticket<br>Pipeline Engine</h1>
+    <p class="hero-name">Built specifically for <strong>Nick Minetos</strong> — PEO Emperor</p>
+    <div class="hero-stats">
+      <div class="h-stat">
+        <div class="h-stat-n">3</div>
+        <div class="h-stat-l">Campaigns Ready</div>
+      </div>
+      <div class="h-stat">
+        <div class="h-stat-n">US</div>
+        <div class="h-stat-l">National Reach</div>
+      </div>
+      <div class="h-stat">
+        <div class="h-stat-n">25/day</div>
+        <div class="h-stat-l">Connections Sent</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SITUATION -->
+  <section>
+    <div class="section-label">01 — Your Situation</div>
+    <h2>We heard you clearly.</h2>
+    <p class="section-sub">During our call, here's what you told us. This proposal is built around it — not a generic deck.</p>
+    <div class="situation-grid">
+      <div class="sit-item">
+        <div class="sit-icon">🎯</div>
+        <div>
+          <div class="sit-label">Primary Goal</div>
+          <div class="sit-val">Build a statewide referral network of US real estate agents</div>
+        </div>
+      </div>
+      <div class="sit-item">
+        <div class="sit-icon">🏡</div>
+        <div>
+          <div class="sit-label">Focus Market</div>
+          <div class="sit-val">Residential mortgages — heavier volume in South National</div>
+        </div>
+      </div>
+      <div class="sit-item">
+        <div class="sit-icon">💪</div>
+        <div>
+          <div class="sit-label">Your Edge</div>
+          <div class="sit-val">PEO Broker offering a FICA tax-saving preventative health program. Saves employers $600-$1000/employee instantly.</div>
+        </div>
+      </div>
+      <div class="sit-item">
+        <div class="sit-icon">🤝</div>
+        <div>
+          <div class="sit-label">Referral Model</div>
+          <div class="sit-val">Connecting with big CEOs and consultants who can bring 500+ employee clients to the table.</div>
+        </div>
+      </div>
+      <div class="sit-item">
+        <div class="sit-icon">📱</div>
+        <div>
+          <div class="sit-label">LinkedIn Status</div>
+          <div class="sit-val">Using LeadsIn at 10-40 requests/day. Low conversion. Needs a system that handles objections.</div>
+        </div>
+      </div>
+      <div class="sit-item">
+        <div class="sit-icon">⚙️</div>
+        <div>
+          <div class="sit-label">Tech Stack</div>
+          <div class="sit-val">GoHighLevel already set up — Atlas syncs directly into your existing GHL workflows</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- STRATEGY -->
+  <section>
+    <div class="section-label">02 — Your Custom Strategy</div>
+    <h2>Three campaigns. One engine.</h2>
+    <p class="section-sub">25 connection requests per day, split intelligently across three targeted pipelines — all running simultaneously, all syncing to your GHL.</p>
+
+    <div class="campaign-grid">
+
+      <!-- Campaign 1 -->
+      <div class="campaign-card c1">
+        <div class="campaign-num">Campaign 01 — Primary</div>
+        <div class="campaign-title">National Agents &amp; Brokers Referral Network</div>
+        <div class="campaign-desc">Your core revenue driver. Target licensed real estate agents and brokers statewide — prioritizing South National where your deal volume is strongest.</div>
+        <div class="campaign-bool">(Owner OR Founder OR CEO) AND ("McDonalds" OR "Subway" OR "Arby's" OR "Hospitality")<br><span style="color:var(--dim);">// Filter: National statewide · Active in last 30 days</span></div>
+        <div class="campaign-hook">"Hey {first_name}, I help hospitality groups add $600+ per employee to their bottom line through FICA tax savings—without changing your payroll provider. Worth a quick connect?"</div>
+        <div style="margin-top:14px;border-radius:10px;overflow:hidden;border:1px solid var(--border);">
+          <div style="font-size:9px;font-family:'JetBrains Mono',monospace;color:var(--dim);padding:6px 10px;background:var(--surface2);border-bottom:1px solid var(--border);">LIVE SEARCH · National Realtors &amp; Agents · Active on LinkedIn</div>
+          <img src="fl_realtor_search.png" alt="US Realtor LinkedIn Search Results" style="width:100%;display:block;opacity:0.9;" loading="lazy">
+          <div style="font-size:10px;color:var(--dim);padding:6px 10px;background:var(--surface2);border-top:1px solid var(--border);">Pages 1–10+ of results for hospitality leaders managing large 100+ employee workforces.</div>
+        </div>
+        <div class="campaign-per-day">~8-9 requests/day</div>
+      </div>
+
+      <!-- Campaign 2 -->
+      <div class="campaign-card c2">
+        <div class="campaign-num">Campaign 02 — Opportunity</div>
+        <div class="campaign-title">Large PEO CEOs</div>
+        <div class="campaign-desc">Going straight to the top of other PEOs with 1,000+ co-employees to integrate your preventative health program.</div>
+        <div class="campaign-bool">("Real Estate Investor" OR "Property Investor" OR Landlord OR "Real Estate Developer" OR "Investment Property") AND National<br><span style="color:var(--dim);">// Filter: US-based · Decision makers</span></div>
+        <div class="campaign-hook">"Hey {first_name} — I work with National investors who need financing that actually moves fast on complex acquisitions. DSCR loans, portfolio deals, foreign national buyers — I've been closing the ones most brokers pass on for 35+ years. Worth a quick connect?"</div>
+        <div class="campaign-per-day">~8-9 requests/day</div>
+      </div>
+
+      <!-- Campaign 3 -->
+      <div class="campaign-card c3">
+        <div class="campaign-num">Campaign 03 — Recruitment</div>
+        <div class="campaign-title">Hospitality Efficiency Consultants</div>
+        <div class="campaign-desc">Partnering with consultants to bring the tax-saving program to their existing 100+ employee clients.</div>
+        <div class="campaign-bool">("Loan Officer" OR "Mortgage Loan Originator" OR "Mortgage Broker" OR "MLO") AND (National OR "Real Estate")<br><span style="color:var(--dim);">// Filter: Hospitality Consultants · Fractional Roles</span></div>
+        <div class="campaign-hook">"Hey {first_name} — I'm building out MortgageHouz in National and connecting with experienced LOs who want more than just a desk. If you're ever curious what a deal-focused shop looks like, happy to connect."</div>
+        <div class="campaign-per-day">~8 requests/day</div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- DRIP SEQUENCE PREVIEW -->
+  <section>
+    <div class="section-label">02B — What They'll Actually Receive</div>
+    <h2>Your 5-step follow-up sequence.</h2>
+    <p class="section-sub">Here's exactly what an agent in the US Referral campaign sees after accepting your connection. Each message drops automatically at the right interval — zero inbox time from you.</p>
+
+    <div style="display:flex;flex-direction:column;gap:12px;">
+
+      <div class="card" style="border-left:3px solid var(--blue);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><span style="font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--blue);">MESSAGE 1 · DAY 0 — CONNECTION ACCEPTED</span><span style="font-size:10px;color:var(--dim);">Warm intro</span></div>
+        <div style="font-size:13px;color:var(--text);line-height:1.7;">Hey {first_name}, appreciate the connect! I saw you're working the {area} market — always great to link up with active agents down here in National. Looking forward to staying in touch.</div>
+        <div style="font-size:10px;color:var(--dim);margin-top:8px;">Purpose: No pitch. Pure warmth. Acknowledge them, establish industry context.</div>
+      </div>
+
+      <div class="card" style="border-left:3px solid var(--acc2);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><span style="font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--acc2);">MESSAGE 2 · DAY 3 — VALUE DROP</span><span style="font-size:10px;color:var(--dim);">Credibility + angle</span></div>
+        <div style="font-size:13px;color:var(--text);line-height:1.7;">A lot of hospitality groups (like that 500-employee cricket club I'm working with) don't realize they can save $600-$1,000 per employee annually on FICA taxes just by offering a zero-net-cost preventative health plan. I'm a PEO broker that sets these up.</div>
+        <div style="font-size:10px;color:var(--dim);margin-top:8px;">Purpose: Lead with the "too good to be true" solution but ground it in a real 500-employee example.</div>
+      </div>
+
+      <div class="card" style="border-left:3px solid var(--green);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><span style="font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--green);">MESSAGE 3 · DAY 6 — PARTNERSHIP ANGLE</span><span style="font-size:10px;color:var(--dim);">Co-marketing hook</span></div>
+        <div style="font-size:13px;color:var(--text);line-height:1.7;">The beauty of this is that your employees actually see their net paychecks go up, while you wipe out $60k+ a year in payroll taxes per 100 employees. Let me know if you want the cliff notes on how it works.</div>
+        <div style="font-size:10px;color:var(--dim);margin-top:8px;">Purpose: Focus on the double-sided benefit (employee pay goes up, employer saves taxes). Lower resistance.</div>
+      </div>
+
+      <div class="card" style="border-left:3px solid var(--gold);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><span style="font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--gold);">MESSAGE 4 · DAY 14 — FOLLOW UP</span><span style="font-size:10px;color:var(--dim);">Trust builder</span></div>
+        <div style="font-size:13px;color:var(--text);line-height:1.7;">Are you currently reviewing any benefits or payroll tax strategies for Q3/Q4? Happy to be a resource if you're looking to trim expenses without cutting staff.</div>
+        <div style="font-size:10px;color:var(--dim);margin-top:8px;">Purpose: Tie into their quarterly planning cycle.</div>
+      </div>
+
+      <div class="card" style="border-left:3px solid var(--red);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><span style="font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--red);">MESSAGE 5 · DAY 21 — DIRECT CTA</span><span style="font-size:10px;color:var(--dim);">Soft close</span></div>
+        <div style="font-size:13px;color:var(--text);line-height:1.7;">Let's grab a quick 5-min chat next week on how we can structure this FICA savings for your group. Are you open Tuesday or Wednesday?</div>
+        <div style="font-size:10px;color:var(--dim);margin-top:8px;">Purpose: Direct ask. By Day 21 they've seen the value and numbers.</div>
+      </div>
+
+    </div>
+
+    <div class="card card-green" style="margin-top:16px;font-size:12px;color:var(--muted);line-height:1.8;">
+      <strong style="color:var(--green);">How this sequence wins:</strong> Each message builds on the last — warm intro → foreign national proof → co-marketing value → triple-license authority → soft close. No pitch in the connection request. No desperation. Just a professional building a real relationship. This is the Atlas framework running at Day 3, 6, 10, 15 intervals — verified across 5,000+ deployed profiles.
+    </div>
+  </section>
+
+  <!-- PIPELINE MATH -->
+  <section>
+    <div class="section-label">03 — The Numbers</div>
+    <h2>What your pipeline looks like in 30 days.</h2>
+    <p class="section-sub">Based on your statewide US targeting. Mortgage broker referral partnerships and investors are some of the highest-converting niches in Atlas's client base.</p>
+
+    <div class="pipeline-flow">
+      <div class="pipe-step">
+        <div class="pipe-n">800</div>
+        <div class="pipe-l">Requests Sent</div>
+        <div class="pipe-rate">25/day</div>
+      </div>
+      <div class="pipe-step">
+        <div class="pipe-n">200–300</div>
+        <div class="pipe-l">Connections Accepted</div>
+        <div class="pipe-rate">25–40% accept</div>
+      </div>
+      <div class="pipe-step">
+        <div class="pipe-n">20–45</div>
+        <div class="pipe-l">Conversations Started</div>
+        <div class="pipe-rate">8–15% reply</div>
+      </div>
+      <div class="pipe-step">
+        <div class="pipe-n" style="color:var(--green)">5–14</div>
+        <div class="pipe-l">Meetings Booked</div>
+        <div class="pipe-rate">2–5% meeting rate</div>
+      </div>
+    </div>
+
+    <div class="roi-grid">
+      <div class="roi-card roi-green">
+        <div class="roi-n">$45K+</div>
+        <div class="roi-l">Potential monthly revenue<br><span style="font-size:10px;opacity:0.7">3 closed 500-employee clients avg $15K/mo recurring</span></div>
+      </div>
+      <div class="roi-card roi-purple">
+        <div class="roi-n">100×+</div>
+        <div class="roi-l">ROI on Atlas<br><span style="font-size:10px;opacity:0.7">1 large deal pays for years of Atlas</span></div>
+      </div>
+    </div>
+
+    <div class="card card-purple" style="margin-top:16px;font-size:13px;color:var(--muted);line-height:1.8;">
+      <strong style="color:var(--acc2);">The break-even math:</strong> At $597/month — closing one 500-employee client yields $15,000/mo in commission. That's a <strong style="color:var(--text);">25× ROI recurring every month.</strong> You mentioned needing only a few of these deals to buy a Greek island. This is the engine that gets you there.
+    </div>
+  </section>
+
+  <!-- MESSAGING ANGLES -->
+  <section>
+    <div class="section-label">04 — Your Messaging Edge</div>
+    <h2>Why agents will respond to you.</h2>
+    <p class="section-sub">Generic mortgage broker outreach gets ignored. These angles are built from what you told us on the call — your real differentiators.</p>
+    <div class="angle-list">
+      <div class="angle-item">
+        <div class="angle-dot"></div>
+        <div>
+          <div class="angle-text">The "Found Money" FICA Strategy</div>
+          <div class="angle-sub">Helping employers save $600-$1,000 per employee annually with a preventative health program. It sounds too good to be true, so we position it logically.</div>
+        </div>
+      </div>
+      <div class="angle-item">
+        <div class="angle-dot" style="background:var(--green)"></div>
+        <div>
+          <div class="angle-text">The Consultant Partnership Model</div>
+          <div class="angle-sub">Splitting commissions with hospitality consultants who already have the trust of large 100+ employee franchises. Let them do the intro.</div>
+        </div>
+      </div>
+      <div class="angle-item">
+        <div class="angle-dot" style="background:var(--gold)"></div>
+        <div>
+          <div class="angle-text">The Authority Playbook</div>
+          <div class="angle-sub">Demystifying the "too good to be true" objections for large enterprises by leading with value, numbers, and real-case scenarios.</div>
+        </div>
+      </div>
+      <div class="angle-item">
+        <div class="angle-dot" style="background:var(--blue)"></div>
+        <div>
+          <div class="angle-text">"Zero Friction Implementation"</div>
+          <div class="angle-sub">We emphasize that this doesn't require ripping out their existing payroll provider. It seamlessly integrates to capture the tax savings.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SOCIAL PROOF -->
+  <section>
+    <div class="section-label">04C — Verified Client Results</div>
+    <h2>This isn't projected. This happened.</h2>
+    <p class="section-sub">From the Atlas client base — verified stats from live campaigns. Same platform, same API, same system you'd be running.</p>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px;">
+      <div class="roi-card roi-green">
+        <div class="roi-n">27%</div>
+        <div class="roi-l">Connection acceptance<br><span style="font-size:10px;opacity:0.7">Atlas benchmark avg: 20–30%</span></div>
+      </div>
+      <div class="roi-card roi-purple">
+        <div class="roi-n">48%</div>
+        <div class="roi-l">Conversation rate<br><span style="font-size:10px;opacity:0.7">from accepted connections</span></div>
+      </div>
+      <div class="roi-card roi-green">
+        <div class="roi-n">4</div>
+        <div class="roi-l">Concurrent campaigns<br><span style="font-size:10px;opacity:0.7">across employee seats</span></div>
+      </div>
+    </div>
+    <div class="card" style="border-left:3px solid var(--green);">
+      <div style="font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--green);margin-bottom:10px;">CASE STUDY · B2B Enterprise Solutions</div>
+      <div style="font-size:13px;color:var(--text);line-height:1.8;">Our B2B clients running 4 concurrent Atlas campaigns reaching C-level execs and enterprise decision-makers — his campaigns hit <strong style="color:var(--green);">27% connection acceptance</strong> and a <strong style="color:var(--green);">48% conversation rate</strong> from everyone who connects. Nearly 1 in 2 people who accept end up in an active conversation.</div>
+      <div style="margin-top:12px;font-size:12px;color:var(--muted);border-top:1px solid var(--border);padding-top:10px;">Large franchise owners and PEO CEOs are <strong style="color:var(--text);">high-value targets</strong>. While volume might be lower, the contract value is massive. Expect targeted, high-quality conversations.</div>
+    </div>
+    <div class="card card-purple" style="margin-top:12px;font-size:12px;color:var(--muted);line-height:1.8;">
+      <strong style="color:var(--acc2);">Applied to your 800 requests/month:</strong> 216 accepted (27%) → 104 conversations (48%) → 5–14 meetings → at $5K–$7K commission per referral = <strong style="color:var(--text);">$540K–$900K annual pipeline value in Month 1..</strong>
+    </div>
+  </section>
+
+  <!-- LINKEDIN PROFILE BEFORE/AFTER -->
+  <section>
+    <div class="section-label">04B — LinkedIn Profile Optimization</div>
+    <h2>What Garret will transform.</h2>
+    <p class="section-sub">Your LinkedIn profile is the landing page for every connection request. Here's the kind of upgrade that doubles acceptance rates — included in your setup fee.</p>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+      <div class="card" style="border-left:3px solid var(--red);">
+        <div style="font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--red);margin-bottom:12px;">BEFORE · TYPICAL MORTGAGE PROFILE</div>
+        <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px;">"PEO Broker at PEO Emperor"</div>
+        <div style="font-size:12px;color:var(--dim);line-height:1.8;margin-top:8px;">
+          → Generic title that blends in with 1,000 other brokers<br>
+          → No value proposition visible before connecting<br>
+          → No credibility signals (licenses, track record)<br>
+          → Banner image is default or irrelevant<br>
+          → About section reads like a resume
+        </div>
+      </div>
+      <div class="card" style="border-left:3px solid var(--green);">
+        <div style="font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--green);margin-bottom:12px;">AFTER · GARRET'S OPTIMIZATION</div>
+        <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px;">"Adding $600-$1K Net Profit Per Employee for 100+ Employee Companies | FICA Tax Savings Strategy"</div>
+        <div style="font-size:12px;color:var(--dim);line-height:1.8;margin-top:8px;">
+          → Headline speaks to CFO/CEO bottom line instantly<br>
+          → Quantifiable profit metric = instant scroll-stopper<br>
+          → "FICA Tax Savings" = clear mechanism of action<br>
+          → Custom banner showing cash-flow impact<br>
+          → About section tells the preventative health story
+        </div>
+      </div>
+    </div>
+
+    <div class="card card-purple" style="margin-top:12px;font-size:12px;color:var(--muted);line-height:1.8;">
+      <strong style="color:var(--acc2);">This is a $2,000 value you keep forever</strong> — even if you cancelled Atlas tomorrow, the optimized profile continues working for you every time someone visits your LinkedIn. Garret does this live on the onboarding call.
+    </div>
+  </section>
+
+  <!-- WHY ATLAS -->
+  <section>
+    <div class="section-label">05 — Why Atlas</div>
+    <h2>The infrastructure behind this.</h2>
+    <p class="section-sub">We're not a LinkedIn tool. We're outbound infrastructure — built on the same API access LinkedIn stopped issuing in 2021.</p>
+    <div class="why-grid">
+      <div class="why-item">
+        <div class="why-icon">⚖️</div>
+        <div class="why-title">Kennected Got Sued. We Didn't.</div>
+        <div class="why-desc">Kennected — once LinkedIn's biggest automation player — received a cease-and-desist and faced a class action for violating LinkedIn's ToS using scraping. They used browser-based methods. We never did. Our pre-2021 API is sanctioned. It's the reason we have a 0% ban rate while their clients lost accounts.</div>
+      </div>
+      <div class="why-item">
+        <div class="why-icon">🔒</div>
+        <div class="why-title">Official Pre-2021 API — 0% Ban Rate</div>
+        <div class="why-desc">We hold a sanctioned LinkedIn API from before 2021 — the same one we've run since day one. LinkedIn stopped issuing new ones after we got ours. 5,000+ profiles deployed, zero bans.</div>
+      </div>
+      <div class="why-item">
+        <div class="why-icon">🤖</div>
+        <div class="why-title">AI That Books Meetings While You Sleep</div>
+        <div class="why-desc">The Pro + AI plan trains an AI on your business — your voice, your rules, your GHL calendar. It qualifies leads and books meetings directly. You wake up to confirmed calls.</div>
+      </div>
+      <div class="why-item">
+        <div class="why-icon">🔗</div>
+        <div class="why-title">Native GHL Sync</div>
+        <div class="why-desc">You already run GHL. Atlas connects directly — all contacts, conversations, and automations flow into your existing CRM. No new system to learn. Everything in one place.</div>
+      </div>
+      <div class="why-item">
+        <div class="why-icon">🎯</div>
+        <div class="why-title">Garret Builds It With You</div>
+        <div class="why-desc">Your onboarding isn't a video series. Garret walks you through campaign build, LinkedIn profile optimization, and targeting live — and the campaigns launch the same day.</div>
+      </div>
+      <div class="why-item">
+        <div class="why-icon">📈</div>
+        <div class="why-title">Month-to-Month. No Lock-In.</div>
+        <div class="why-desc">We live by our results. No 3-month minimums, no annual contracts. Cancel anytime. We're confident enough in the system that we don't need to hold you hostage.</div>
+      </div>
+      <div class="why-item">
+        <div class="why-icon">🛠️</div>
+        <div class="why-title">Unlimited Optimization Support</div>
+        <div class="why-desc">Change your ICP at month 2? Want to add a South National-specific campaign? Just call. Unlimited support calls included. We fine-tune as your business evolves.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PRICING -->
+  <section>
+    <div class="section-label">06 — Investment</div>
+    <h2>Two plans. One clear recommendation.</h2>
+    <p class="section-sub">Given that you already have GHL and want this running without babysitting an inbox — Pro + AI is the move.</p>
+
+    <div class="pricing-grid">
+      <div class="price-card">
+        <div class="price-name">Essentials</div>
+        <div class="price-amt">$180<span>/mo</span></div>
+        <hr class="price-divider">
+        <div class="price-feat">LinkedIn connection automation</div>
+        <div class="price-feat">Auto-scraped emails + phone numbers</div>
+        <div class="price-feat">GHL 2-way sync</div>
+        <div class="price-feat">All 3 campaigns configured</div>
+        <div class="price-feat">White-glove onboarding with Garret</div>
+        <div class="price-note">You handle the inbox manually once they reply — ~30 min/day.</div>
+      </div>
+      <div class="price-card featured">
+        <div class="featured-badge">⭐ Recommended for Anthony</div>
+        <div class="price-name">Pro + AI</div>
+        <div class="price-amt">$597<span>/mo</span></div>
+        <hr class="price-divider">
+        <div class="price-feat">Everything in Essentials</div>
+        <div class="price-feat">AI agent trained on your business</div>
+        <div class="price-feat">Handles the full inbox — qualifies, nurtures, books</div>
+        <div class="price-feat">Meetings land directly on your calendar</div>
+        <div class="price-feat">Advanced analytics dashboard</div>
+        <div class="price-feat">Priority support and optimization</div>
+        <div class="price-note" style="color:var(--acc2);">Full autopilot — connection to booked call, no inbox time required.</div>
+      </div>
+    </div>
+
+    <div class="setup-card">
+      <div>
+        <div class="setup-title">One-Time Setup · $1,500</div>
+        <div class="setup-desc">This is where the real value lives. LinkedIn profile optimization alone is a $2,000 service — you keep it forever. Plus Garret builds all 3 campaigns live with you, ready to launch same day.</div>
+      </div>
+      <div class="setup-breakdown">
+        <div class="setup-row"><span class="lbl">LinkedIn profile optimization</span><span class="val">$2,000 value</span></div>
+        <div class="setup-row"><span class="lbl">3 custom campaigns built</span><span class="val">Included</span></div>
+        <div class="setup-row"><span class="lbl">GHL integration setup</span><span class="val">Included</span></div>
+        <div class="setup-row"><span class="lbl">Live onboarding with Garret</span><span class="val">Included</span></div>
+        <div class="setup-row" style="border-color:rgba(108,62,240,0.3);"><span class="lbl" style="color:var(--acc2);">You pay</span><span class="val">$1,500</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- WHAT HAPPENS NEXT -->
+  <section>
+    <div class="section-label">07 — What Happens Next</div>
+    <h2>From today to first meeting.</h2>
+    <p class="section-sub">Here's exactly what the next 30 days look like from the moment you say yes.</p>
+    <div class="timeline">
+      <div class="tl-item">
+        <div class="tl-left"><div class="tl-dot"></div><div class="tl-line"></div></div>
+        <div class="tl-right">
+          <div class="tl-time">Today</div>
+          <div class="tl-title">Decision + Onboarding Scheduled</div>
+          <div class="tl-body">Confirm plan, setup fee processed. Garret's onboarding call booked within 48 hours.</div>
+        </div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-left"><div class="tl-dot"></div><div class="tl-line"></div></div>
+        <div class="tl-right">
+          <div class="tl-time">Day 1–2 · Onboarding Call</div>
+          <div class="tl-title">Garret Builds Everything Live With You</div>
+          <div class="tl-body">LinkedIn profile fully optimized. All 3 campaigns built with your exact targeting. GHL connected. Campaign launches same day.</div>
+        </div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-left"><div class="tl-dot"></div><div class="tl-line"></div></div>
+        <div class="tl-right">
+          <div class="tl-time">Day 3 · Signal Check</div>
+          <div class="tl-title">First Data Coming In</div>
+          <div class="tl-body">You'll see early acceptance signals. We report: "[X] requests sent, [Y] accepted — Phase 1 running."</div>
+        </div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-left"><div class="tl-dot"></div><div class="tl-line"></div></div>
+        <div class="tl-right">
+          <div class="tl-time">Day 7 · Optimization Call</div>
+          <div class="tl-title">First Tune-Up</div>
+          <div class="tl-body">Review which campaigns are getting traction. Adjust targeting if acceptance rates need a boost. Fix any AI tone issues.</div>
+        </div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-left"><div class="tl-dot"></div><div class="tl-line"></div></div>
+        <div class="tl-right">
+          <div class="tl-time">Week 2–3 · Compound Begins</div>
+          <div class="tl-title">Conversations → Meetings</div>
+          <div class="tl-body">This is when the pipeline starts converting. First agent referral partnerships forming. Investor conversations building.</div>
+        </div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-left"><div class="tl-dot"></div><div class="tl-line"></div></div>
+        <div class="tl-right">
+          <div class="tl-time">Day 30 · Month 1 Review</div>
+          <div class="tl-title">Full Pipeline Report</div>
+          <div class="tl-body">"Math before magic — here's your month 1 math." We show connections, conversations, meetings booked, and pipeline built.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section>
+    <div class="section-label">08 — Common Questions</div>
+    <h2>Before you ask.</h2>
+    <p class="section-sub">The five questions every mortgage professional asks before getting started.</p>
+
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <div class="card">
+        <div style="font-size:14px;font-weight:600;color:var(--acc2);margin-bottom:6px;">"Will my LinkedIn account get banned?"</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.7;">We've deployed across 5,000+ profiles with a 0% ban rate. We hold a sanctioned LinkedIn API from before 2021 — LinkedIn stopped issuing new ones after ours was granted. We cap at 25 requests per day with algorithmic variance to mimic human behavior. Your account is safer with us than doing it manually.</div>
+      </div>
+      <div class="card">
+        <div style="font-size:14px;font-weight:600;color:var(--acc2);margin-bottom:6px;">"What if I want to change my targeting mid-campaign?"</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.7;">Call or text us anytime. We do unlimited optimization support — if you want to shift from statewide US agents to only South National, or add a specific brokerage to target, we adjust it the same day. No extra charge.</div>
+      </div>
+      <div class="card">
+        <div style="font-size:14px;font-weight:600;color:var(--acc2);margin-bottom:6px;">"Can I start with essentials and upgrade later?"</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.7;">The Pro + AI plan at $597/mo is what we're recommending for you. Here's why: the AI handles your inbox 24/7, responding to warm leads in your voice — that's 20–30 minutes of follow-up daily that no longer falls through the cracks. At 35 years deep in this business, your time is worth far more than $597/mo. This is the plan that gets you results without adding to your workload.</div>
+      </div>
+      <div class="card">
+        <div style="font-size:14px;font-weight:600;color:var(--acc2);margin-bottom:6px;">"How long before I see results?"</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.7;">Week 1 is signal collection — connections going out, first acceptances coming in. Week 2-3 is when conversations start compounding. Most clients see their first booked meeting within 14-21 days. By Day 30, you have a full month of pipeline data and we do a deep review together.</div>
+      </div>
+      <div class="card">
+        <div style="font-size:14px;font-weight:600;color:var(--acc2);margin-bottom:6px;">"Is there a contract or minimum commitment?"</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.7;">Month-to-month. Cancel anytime with zero penalties. We're confident enough in the system that we don't need to lock you in. The only commitment is the one-time $1,500 setup fee because that work is done upfront — the LinkedIn optimization and campaign builds happen on Day 1.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <div class="cta-section">
+    <div class="cta-box">
+      <div style="font-size:40px;margin-bottom:16px;">🚀</div>
+      <h2>Ready to build your statewide pipeline?</h2>
+      <p>Your onboarding is at <strong style="color:var(--acc2);">09:30 AM on Friday, March 27</strong>. Come ready with your LinkedIn login and we'll get your campaigns live the same week.</p>
+      <div style="margin-top:16px;margin-bottom:12px;padding:12px 20px;background:var(--gold-bg);border:1px solid rgba(245,158,11,0.25);border-radius:10px;font-size:12px;color:#fcd87e;display:inline-block;">
+        ⚡ Onboarding this week = campaigns live before April 1st. Every day delayed is 25 connections you don't make.
+      </div>
+      <div style="margin-top:20px;margin-bottom:12px;">
+        <a href="https://www.fanbasis.com/agency-checkout/atlas-optimizations/r2Dr6" target="_blank" class="cta-meeting" style="display:inline-flex;text-decoration:none;">🔥 Complete Setup & Activation</a>
+      </div>
+      <div style="font-size:11px;color:var(--dim);margin-bottom:24px;">$597/mo · Cancel anytime</div>
+      <div style="margin-top:8px;margin-bottom:28px;font-size:13px;color:var(--muted);">
+        Questions before then? Text or email anytime.
+      </div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--muted);background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 24px;display:inline-block;">
+        📅 Follow-Up Call · March 27, 2026 · 09:30 AM<br>
+        📞 (705) 905-1340 · officialjackbentley@gmail.com
+      </div>
+      <div style="margin-top:16px;display:flex;gap:16px;justify-content:center;flex-wrap:wrap;">
+        <a href="https://help.lead-updates.com/" target="_blank" style="font-size:11px;color:var(--dim);text-decoration:none;border:1px solid var(--border);padding:6px 14px;border-radius:8px;">📖 Help Center</a>
+        <a href="https://docs.lead-updates.com/" target="_blank" style="font-size:11px;color:var(--dim);text-decoration:none;border:1px solid var(--border);padding:6px 14px;border-radius:8px;">⚙️ API Documentation</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <div>© 2026 Atlas Optimizations · atlasoptimizations.com</div>
+    <div>Prepared by Jack Bentley · officialjackbentley@gmail.com · (705) 905-1340</div>
+  </footer>
+
+</div>
+</body>
+</html>
